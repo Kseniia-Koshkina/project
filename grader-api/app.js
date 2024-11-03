@@ -1,5 +1,6 @@
 import { serve } from "./deps.js";
 import { grade } from "./services/gradingService.js";
+import { createClient } from "./deps.js";
 
 let state = -1;
 
@@ -83,3 +84,16 @@ const handleRequest = async (request) => {
 
 const portConfig = { port: 7000, hostname: "0.0.0.0" };
 serve(handleRequest, portConfig);
+
+const client = createClient({
+  url: "redis://redis:6379",
+  pingInterval: 1000
+});
+
+await client.connect();
+console.log("connected");
+
+await client.subscribe(
+  "submission-queue",
+  (message, channel) => console.log(message, channel)
+)
