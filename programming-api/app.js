@@ -2,38 +2,44 @@ import * as programmingAssignmentService from "./services/programmingAssignmentS
 import { serve } from "./deps.js";
 import { createClient } from "./deps.js";
 
-const client = createClient({
+const clientPublish = createClient({
+  url: "redis://redis:6379",
+  pingInterval: 1000,
+});
+const clientSubscribe = createClient({
   url: "redis://redis:6379",
   pingInterval: 1000,
 });
 
-await client.connect();
-console.log("connected PROGRAMMING-API");
+await clientPublish.connect();
+await clientSubscribe.connect();
 
-const handleGrading = async (request) => {
-  try {
-    const programmingAssignments = await programmingAssignmentService.findAll();
-
-    const requestData = await request.json();
-    const testCode = programmingAssignments[0]["test_code"];
-    const data = {
-      testCode: testCode,
-      code: requestData.code,
-    };
-
-    const response = await fetch("http://grader-api:7000/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-  
-    return response;
-  } catch {
-
+await clientSubscribe.subscribe(
+  "grading-results", 
+  (message, channel) => {
+    console.log(message);
+    const data = JSON.parse(message);
+    programmingAssignmentService.updateSubmission(
+      data.submissionId, 
+      data.graderFeedback, 
+      data.correct
+    );
   }
-};
+);
+
+const handleGetSubmissions = async (request) => {
+  const url = new URL(request.url);
+  const userUuid = url.searchParams.get('userUuid');
+  const programmingAssignmentId = url.searchParams.get('programmingAssignmentId');
+
+  if (userUuid && programmingAssignmentId) {
+    const submissions = await programmingAssignmentService.getUserAssignmentSubmissions(userUuid, programmingAssignmentId);
+    return Response.json(submissions);
+  }
+
+  const submissions = await programmingAssignmentService.getAllSubmissions();
+  return Response.json(submissions)
+}
 
 const handleGetAssignment = async (request) => {
   try {
@@ -73,12 +79,22 @@ const handleSubmission = async (request) => {
       correct,
       grader_feedback
     );
+    console.log(submission);
+    // if (submissionFound.length == 0) {
+    const testCode = await programmingAssignmentService.getTestCode(programmingAssignmentId);
+    if (testCode.length != 0){
+      const message = {
+        submissionId: submission[0].id,
+        code: code,
+        testCode: testCode[0].test_code
+      }
+      clientPublish.publish("submission-queue", JSON.stringify(message));
+    }
+    // }
 
-    client.publish("submission-queue", JSON.stringify(submission));
-
-    return Response.json(submission, { status: 200 });
+    return Response.json({id: submission[0].id}, { status: 200 });
   } catch {
-    return new Response("Internal server error", { status: 500 });
+    return Response.json("Internal server error", { status: 500 });
   }
 }
 
@@ -88,11 +104,6 @@ const handleGetRoot = async () => {
 
 const urlMapping = [
   {
-    method: "POST",
-    pattern: new URLPattern({ pathname: "/grade" }),
-    fn: handleGrading,
-  },
-  {
     method: "GET",
     pattern: new URLPattern({ pathname: "/assignment" }),
     fn: handleGetAssignment
@@ -101,6 +112,11 @@ const urlMapping = [
     method: "POST",
     pattern: new URLPattern({ pathname: "/submission" }),
     fn: handleSubmission
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/submissions" }),
+    fn: handleGetSubmissions
   },
   {
     method: "GET",
