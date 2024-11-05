@@ -1,4 +1,3 @@
-import { serve } from "./deps.js";
 import { grade } from "./services/gradingService.js";
 import { createClient } from "./deps.js";
 
@@ -30,12 +29,13 @@ await clientSubscribe.subscribe(
 
 const processQueue = async () => {
   if (messageQueue.length > 0) {
-    const { submissionId, code, testCode } = messageQueue.shift();
+    const { submissionId, userUuid, code, testCode } = messageQueue.shift();
     const result = await grade(code, testCode);
     const correct = result.includes("\n\nOK");
 
     clientPublish.publish("grading-results", JSON.stringify({
       submissionId: submissionId,
+      userUuid: userUuid,
       graderFeedback: result,
       correct: correct
     }));

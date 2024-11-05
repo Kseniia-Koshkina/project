@@ -2,6 +2,8 @@ import * as programmingAssignmentService from "./services/programmingAssignmentS
 import { serve } from "./deps.js";
 import { createClient } from "./deps.js";
 
+const sockets = new Map();
+
 const clientPublish = createClient({
   url: "redis://redis:6379",
   pingInterval: 1000,
@@ -16,7 +18,7 @@ await clientSubscribe.connect();
 
 await clientSubscribe.subscribe(
   "grading-results", 
-  (message, channel) => {
+  (message) => {
     console.log(message);
     const data = JSON.parse(message);
     programmingAssignmentService.updateSubmission(
@@ -24,6 +26,7 @@ await clientSubscribe.subscribe(
       data.graderFeedback, 
       data.correct
     );
+    sockets.get(data.userUuid).send(message);
   }
 );
 
@@ -85,6 +88,7 @@ const handleSubmission = async (request) => {
     if (testCode.length != 0){
       const message = {
         submissionId: submission[0].id,
+        userUuid: userUuid,
         code: code,
         testCode: testCode[0].test_code
       }
@@ -100,6 +104,21 @@ const handleSubmission = async (request) => {
 
 const handleGetRoot = async () => {
   return Response.json("hello")
+}
+
+const handleConnect = async (request) => {
+  const url = new URL(request.url);
+  const userUuid = url.searchParams.get('userUuid');
+  const { socket, response } = Deno.upgradeWebSocket(request);
+
+  sockets.set(userUuid, socket);
+
+  console.log(sockets);
+  socket.onclose = () => {
+    sockets.delete(socket);
+  };
+
+  return response;
 }
 
 const urlMapping = [
@@ -122,6 +141,11 @@ const urlMapping = [
     method: "GET",
     pattern: new URLPattern({ pathname: "/" }),
     fn: handleGetRoot  
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/connect" }),
+    fn: handleConnect  
   }
 ];
 
