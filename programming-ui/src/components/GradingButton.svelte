@@ -45,7 +45,7 @@
 </script>
 
 <button
-  class="bg-blue-500 hover:bg-blue-700 text-white font-bold p-2 rounded float-right"
+  class="text-[#28c244] bg-[#222222] hover:bg-[#282828] w-[80px] font-bold p-2 rounded float-right"
   on:click={submit}
   disabled={!activeToSubmit}
 >
