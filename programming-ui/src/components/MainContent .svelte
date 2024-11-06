@@ -12,6 +12,7 @@
   let submissions = [];
   let assignments;
   let assignment;
+  let scoreSubmissions = 0;
 
   const setLastVisitAssignment = async (userUuid, programmingAssignment) => {
     const data = {
@@ -44,9 +45,16 @@
   }
 
   const addSubmission = (submission) => {
+    if (submission.correct) addScore(submission);
     submissions = [submission, ...submissions];
   }
-
+  const addScore = (newSubmission) => {
+    const correctSubmissionExists = scoreSubmissions.find(submission => 
+      submission.programming_assignment_id == newSubmission.programming_assignment_id);
+    if (!correctSubmissionExists) {
+      scoreSubmissions = [...scoreSubmissions, newSubmission];
+    }
+  }
   const updateSubmission = (data) => {
     const copySubmissions = submissions;
     const index = submissions.findIndex(submission => submission.id == data.submissionId);
@@ -54,44 +62,55 @@
     copySubmissions[index].grader_feedback = data.graderFeedback;
     copySubmissions[index].correct = data.correct;
     submissions = copySubmissions;
+    if (copySubmissions[index].correct) addScore(copySubmissions[index]);
   }
 
-  const getAssignment = async () => {
+  const loadPageContent = async () => {
     const responseAssignments = await fetch("/api/assignments", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-      },
+      }
     }); 
-    
+
     const responseAssignment = await fetch(`/api/assignment?userUuid=${$userUuid}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-      },
+      }
     });
-    assignments = await responseAssignments.json();
-    assignment = await responseAssignment.json();
-  }
 
-  const getSubmissions = async (userUuid, programmingAssignmentId) => {
-    const response = await fetch(`/api/submissions?userUuid=${userUuid}&programmingAssignmentId=${programmingAssignmentId}`, {
+    const responseScore = await fetch(`/api/submissions?userUuid=${$userUuid}&correctUnique=true`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-      },
-    });
+      }
+    })
+    assignments = await responseAssignments.json();
+    assignment = await responseAssignment.json();
+    scoreSubmissions = await responseScore.json();
+  }
 
-    submissions = await response.json();
+  const getSubmissions = async (userUuid, programmingAssignmentId) => {
+    if (programmingAssignmentId) {
+      const response = await fetch(`/api/submissions?userUuid=${userUuid}&programmingAssignmentId=${programmingAssignmentId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      submissions = await response.json();
+    }
   }
 </script>
 
 <div class="container mx-auto w-4/5 max-w-[664px] flow-root pl-4 pr-4"> 
   <NextButton nextAssignment={nextAssignment}/>
-  <PreviousButton previousAssignment={previousAssignment}/>
+  <PreviousButton previousAssignment={previousAssignment}/> <p>Total score: {scoreSubmissions.length * 100}</p>
 </div>
 
-{#await getAssignment()}
+{#await loadPageContent()}
   <div class="container mx-auto w-4/5 flex col-2 place-content-center">
     <AssignmentInfo text="Loading..."/>
     <AssignmentSolution />
@@ -117,8 +136,8 @@
         programmingAssignmentId={assignment.id} 
         addSubmission={addSubmission} 
         updateSubmission={updateSubmission} 
+        addScore={addScore}
         code={inputText} 
-        client:only={"svelte"}
       />
     </div>
   {/if}

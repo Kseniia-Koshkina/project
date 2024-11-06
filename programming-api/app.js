@@ -38,10 +38,9 @@ try {
         );
         sockets.get(data.userUuid).send(message);
       } catch(error) {
-        console.error(error)
-      }
+      console.error(error);
     }
-  );
+  });
 } catch(error) {
   console.error("Failed to set up Redis connections:", error);
 }
@@ -51,7 +50,11 @@ const handleGetSubmissions = async (request) => {
     const url = new URL(request.url);
     const userUuid = url.searchParams.get('userUuid');
     const programmingAssignmentId = url.searchParams.get('programmingAssignmentId');
-
+    const correctUnique = url.searchParams.get('correctUnique');
+    if (userUuid && correctUnique) {
+      const submissions = await programmingAssignmentService.getUniqueCorrectAssignmentSubmissions(userUuid);
+      return Response.json(submissions);
+    }
     if (userUuid && programmingAssignmentId) {
       const submissions = await programmingAssignmentService.getUserAssignmentSubmissions(userUuid, programmingAssignmentId);
       return Response.json(submissions);
@@ -81,7 +84,7 @@ const addLastVisitAssignment = async (request) => {
 const handleGetAssignment = async (request) => {
   try {
     if (!redis) 
-      return Response.json("Service unavailable - Redis not connected", { status: 503 });
+      return new Response("Service unavailable - Redis not connected", { status: 503 });
     const url =  new URL(request.url);
     const userUuid = url.searchParams.get('userUuid');
     if (!userUuid) {
@@ -97,7 +100,8 @@ const handleGetAssignment = async (request) => {
       await redis.set(`${userUuid}-last-visited`, JSON.stringify(uncompletedAssignments[0]));
       return Response.json(uncompletedAssignments[0]);
     }
-    const allAssignments = programmingAssignmentService.getAllAssignments();
+
+    const allAssignments = await programmingAssignmentService.getAllAssignments();
     if (allAssignments.length != 0) {
       await redis.set(`${userUuid}-last-visited`, JSON.stringify(allAssignments[0]));
       return Response.json(allAssignments[0]);

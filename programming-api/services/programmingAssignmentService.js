@@ -44,6 +44,12 @@ const getUserAssignmentSubmissions = async (userUuid, programmingAssignmentId) =
     ORDER BY last_updated DESC;`;
 }
 
+const getUniqueCorrectAssignmentSubmissions = async (userUuid) => {
+  return await sql`
+    SELECT DISTINCT ON (programming_assignment_id) * FROM programming_assignment_submissions
+    WHERE correct=TRUE AND user_uuid = ${userUuid};`;
+}
+
 const updateSubmission = async (submissionId, graderFeedback, correct) => {
   return await sql`
     UPDATE programming_assignment_submissions
@@ -56,4 +62,4 @@ const getTestCode = async (programmingAssignmentId) => {
     WHERE id = ${programmingAssignmentId};`
 }
 
-export { getAllAssignments, findUncompletedAssignment, addSubmission, getSubmission, getTestCode, updateSubmission, getAllSubmissions, getUserAssignmentSubmissions };
+export { getAllAssignments, findUncompletedAssignment, addSubmission, getSubmission, getUniqueCorrectAssignmentSubmissions, getTestCode, updateSubmission, getAllSubmissions, getUserAssignmentSubmissions };
