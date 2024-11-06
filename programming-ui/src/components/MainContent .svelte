@@ -4,63 +4,123 @@
   import AssignmentSolution from "./AssignmentSolution.svelte";
   import NextButton from "./NextButton.svelte";
   import PreviousButton from "./PreviousButton.svelte";
-  import {onMount} from "svelte";
+  import Submission from "./Submission.svelte";
+  import { onMount } from "svelte";
   import { userUuid } from "../stores/stores";
 
   let inputText = "";
-  let ws;
+  let submissions = [];
+  let assignments;
+  let assignment;
 
-  const buttonPressed = () => {
-    console.log(inputText);
+  const setLastVisitAssignment = async (userUuid, programmingAssignment) => {
+    const data = {
+      userUuid: userUuid,
+      programmingAssignment: programmingAssignment
+    }
+    await fetch(`/api/assignment/last-visit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data)
+    })
+  }
+
+  const nextAssignment = async () => {
+    const currentIndex = assignments.findIndex(assignmentIndexing => assignmentIndexing.id == assignment.id);
+    if (currentIndex + 1 < assignments.length) {
+      assignment = assignments[currentIndex+1];
+      await setLastVisitAssignment($userUuid, assignment);
+    }
+  }
+
+  const previousAssignment = async () => {
+    const currentIndex = assignments.findIndex(assignmentIndexing => assignmentIndexing.id == assignment.id);
+    if (currentIndex - 1 >= 0) {
+      assignment = assignments[currentIndex-1];
+      await setLastVisitAssignment($userUuid, assignment);
+    }
+  }
+
+  const addSubmission = (submission) => {
+    submissions = [submission, ...submissions];
+  }
+
+  const updateSubmission = (data) => {
+    const copySubmissions = submissions;
+    const index = submissions.findIndex(submission => submission.id == data.submissionId);
+    copySubmissions[index].status = 'processed';
+    copySubmissions[index].grader_feedback = data.graderFeedback;
+    copySubmissions[index].correct = data.correct;
+    submissions = copySubmissions;
   }
 
   const getAssignment = async () => {
-    const response = await fetch("/api/assignment", {
+    const responseAssignments = await fetch("/api/assignments", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }); 
+    
+    const responseAssignment = await fetch(`/api/assignment?userUuid=${$userUuid}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    assignments = await responseAssignments.json();
+    assignment = await responseAssignment.json();
+  }
+
+  const getSubmissions = async (userUuid, programmingAssignmentId) => {
+    const response = await fetch(`/api/submissions?userUuid=${userUuid}&programmingAssignmentId=${programmingAssignmentId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
     });
 
-    return await response.json();
+    submissions = await response.json();
   }
-
-  onMount(() => {
-    const host = window.location.hostname;
-    ws = new WebSocket("ws://" + host + ":7800/api/connect?userUuid=" + $userUuid);
-
-    ws.onmessage = (event) => {
-      console.log(event.data);
-    };
-
-    // return () => {
-    //   if (ws.readyState === 1) {
-    //     ws.close();
-    //   }
-    // };
-  });
-  let assignmentPromise = getAssignment();
 </script>
 
 <div class="container mx-auto w-4/5 max-w-[664px] flow-root pl-4 pr-4"> 
-  <NextButton buttonPressed = {buttonPressed}/>
-  <PreviousButton />
+  <NextButton nextAssignment={nextAssignment}/>
+  <PreviousButton previousAssignment={previousAssignment}/>
 </div>
 
 
-{#await assignmentPromise}
+{#await getAssignment()}
   <div class="container mx-auto w-4/5 flex col-2 place-content-center">
     <AssignmentInfo text="Loading..."/>
     <AssignmentSolution />
   </div>
-{:then assignment}
+{:then}
   {#if assignment}
     <div class="container mx-auto w-4/5 flex col-2 place-content-center">
       <AssignmentInfo text={assignment.handout} />
       <AssignmentSolution bind:inputText={inputText} />
     </div>
-    <div class="container mx-auto w-4/5 max-w-[664px] flow-root pl-4 pr-4">
-      <GradingButton programmingAssignmentId={assignment.id} code={inputText} client:only={"svelte"}/>
+
+    <div class="container mx-auto flex w-4/5 max-w-[664px] flow-root pl-4 pr-4">
+      <div class="w-2/5 max-w-[332px] float-left">
+        {#await getSubmissions($userUuid, assignment.id)}
+          <p>Loading...</p>
+        {:then} 
+          {#each submissions as submission}
+            <Submission submission={submission}/>
+          {/each}
+        {/await}
+      </div>
+      <GradingButton 
+        programmingAssignmentId={assignment.id} 
+        addSubmission={addSubmission} 
+        updateSubmission={updateSubmission} 
+        code={inputText} 
+        client:only={"svelte"}
+      />
     </div>
   {/if}
 {/await}

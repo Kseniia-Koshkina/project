@@ -1,6 +1,5 @@
 <script>
   export let inputText;
-
 </script>
 
 <div class="m-4 w-1/2 max-w-[300px]">

@@ -1,10 +1,10 @@
 import { sql } from "../database/database.js";
 
-const findAll = async () => {
+const getAllAssignments = async () => {
   return await sql`SELECT * FROM programming_assignments;`;
 };
 
-const findAssignment = async (userUuid) => {
+const findUncompletedAssignment = async (userUuid) => {
   return await sql`SELECT * FROM programming_assignments 
   WHERE id NOT IN 
   (SELECT programming_assignment_id FROM programming_assignment_submissions 
@@ -24,24 +24,24 @@ const addSubmission = async (
     (programming_assignment_id, code, user_uuid, status, correct, grader_feedback, last_updated)
   VALUES 
     (${programmingAssignmentId}, ${code}, ${userUuid}, ${status}, ${correct}, ${grader_feedback}, NOW())
-  RETURNING id;`
+  RETURNING *;`
 }
 
 const getAllSubmissions = async () => {
   return await sql`SELECT * FROM programming_assignment_submissions;`
 }
 
-const getSubmission = async (programmingAssignmentId, code) => {
+const getSubmission = async (programmingAssignmentId, code, status) => {
   return await sql`
     SELECT * FROM programming_assignment_submissions
-    WHERE programming_assignment_id = ${programmingAssignmentId} AND code = ${code};`
+    WHERE programming_assignment_id = ${programmingAssignmentId} AND code = ${code} AND status=${status};`
 }
 
 const getUserAssignmentSubmissions = async (userUuid, programmingAssignmentId) => {
   return await sql`
     SELECT * FROM programming_assignment_submissions
     WHERE programming_assignment_id = ${programmingAssignmentId} AND user_uuid = ${userUuid}
-    ORDER BY last_updated;`;
+    ORDER BY last_updated DESC;`;
 }
 
 const updateSubmission = async (submissionId, graderFeedback, correct) => {
@@ -56,4 +56,4 @@ const getTestCode = async (programmingAssignmentId) => {
     WHERE id = ${programmingAssignmentId};`
 }
 
-export { findAll, findAssignment, addSubmission, getSubmission, getTestCode, updateSubmission, getAllSubmissions, getUserAssignmentSubmissions };
+export { getAllAssignments, findUncompletedAssignment, addSubmission, getSubmission, getTestCode, updateSubmission, getAllSubmissions, getUserAssignmentSubmissions };

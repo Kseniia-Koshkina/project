@@ -32,11 +32,12 @@ const processQueue = async () => {
     const { submissionId, userUuid, code, testCode } = messageQueue.shift();
     const result = await grade(code, testCode);
     const correct = result.includes("\n\nOK");
+    const message = correct ? "OK" : result.match(/(.*?)Error: (.*?)(?:$|\n)/)[0];
 
     clientPublish.publish("grading-results", JSON.stringify({
       submissionId: submissionId,
       userUuid: userUuid,
-      graderFeedback: result,
+      graderFeedback: message,
       correct: correct
     }));
   }
