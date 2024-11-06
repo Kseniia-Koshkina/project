@@ -48,6 +48,7 @@
     if (submission.correct) addScore(submission);
     submissions = [submission, ...submissions];
   }
+
   const addScore = (newSubmission) => {
     const correctSubmissionExists = scoreSubmissions.find(submission => 
       submission.programming_assignment_id == newSubmission.programming_assignment_id);
@@ -55,6 +56,7 @@
       scoreSubmissions = [...scoreSubmissions, newSubmission];
     }
   }
+
   const updateSubmission = (data) => {
     const copySubmissions = submissions;
     const index = submissions.findIndex(submission => submission.id == data.submissionId);
