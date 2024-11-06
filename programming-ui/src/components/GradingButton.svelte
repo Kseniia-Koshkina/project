@@ -27,14 +27,18 @@
     if (jsonData.status == "processed") {
       activeToSubmit = true;
     } else {
-      ws = new WebSocket("ws://" + host + ":7800/api/connect?userUuid=" + $userUuid);
+      try {
+        ws = new WebSocket("ws://" + host + ":7800/api/connect?userUuid=" + $userUuid);
 
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        updateSubmission(data);
-        ws.close();
-        activeToSubmit = true;
-      };
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          updateSubmission(data);
+          ws.close();
+          activeToSubmit = true;
+        };
+      } catch(error) {
+        console.error(error)
+      }
     }
     addSubmission(jsonData);
   }
