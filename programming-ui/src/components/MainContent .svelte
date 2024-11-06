@@ -91,7 +91,6 @@
   <PreviousButton previousAssignment={previousAssignment}/>
 </div>
 
-
 {#await getAssignment()}
   <div class="container mx-auto w-4/5 flex col-2 place-content-center">
     <AssignmentInfo text="Loading..."/>

@@ -3,70 +3,85 @@ import { serve } from "./deps.js";
 import { createClient } from "./deps.js";
 import { connect } from "./deps.js";
 
-const redis = await connect({
-  hostname: "redis",
-  port: 6379,
-});
-
 const sockets = new Map();
+let redis;
+let clientPublish;
+let clientSubscribe;
 
-const clientPublish = createClient({
-  url: "redis://redis:6379",
-  pingInterval: 1000,
-});
-const clientSubscribe = createClient({
-  url: "redis://redis:6379",
-  pingInterval: 1000,
-});
+try {
+  redis = await connect({
+    hostname: "redis",
+    port: 6379,
+  });
 
-await clientPublish.connect();
-await clientSubscribe.connect();
+  clientPublish = createClient({
+    url: "redis://redis:6379",
+    pingInterval: 1000,
+  });
+  clientSubscribe = createClient({
+    url: "redis://redis:6379",
+    pingInterval: 1000,
+  });
 
-await clientSubscribe.subscribe(
-  "grading-results", 
-  (message) => {
-    try {      
-      const data = JSON.parse(message);
-      programmingAssignmentService.updateSubmission(
-        data.submissionId, 
-        data.graderFeedback, 
-        data.correct
-      );
-      sockets.get(data.userUuid).send(message);
-    } catch(error) {
-      console.error(error)
+  await clientPublish.connect();
+  await clientSubscribe.connect();
+
+  await clientSubscribe.subscribe(
+    "grading-results", 
+    (message) => {
+      try {      
+        const data = JSON.parse(message);
+        programmingAssignmentService.updateSubmission(
+          data.submissionId, 
+          data.graderFeedback, 
+          data.correct
+        );
+        sockets.get(data.userUuid).send(message);
+      } catch(error) {
+        console.error(error)
+      }
     }
-  }
-);
+  );
+} catch(error) {
+  console.error("Failed to set up Redis connections:", error);
+}
 
 const handleGetSubmissions = async (request) => {
-  const url = new URL(request.url);
-  const userUuid = url.searchParams.get('userUuid');
-  const programmingAssignmentId = url.searchParams.get('programmingAssignmentId');
+  try {
+    const url = new URL(request.url);
+    const userUuid = url.searchParams.get('userUuid');
+    const programmingAssignmentId = url.searchParams.get('programmingAssignmentId');
 
-  if (userUuid && programmingAssignmentId) {
-    const submissions = await programmingAssignmentService.getUserAssignmentSubmissions(userUuid, programmingAssignmentId);
+    if (userUuid && programmingAssignmentId) {
+      const submissions = await programmingAssignmentService.getUserAssignmentSubmissions(userUuid, programmingAssignmentId);
+      return Response.json(submissions);
+    }
+
+    const submissions = await programmingAssignmentService.getAllSubmissions();
     return Response.json(submissions);
+  } catch(error) {
+    return Response.json(`Internal server error: ${error}`, { status: 500 });
   }
-
-  const submissions = await programmingAssignmentService.getAllSubmissions();
-  return Response.json(submissions)
 }
 
 const addLastVisitAssignment = async (request) => {
   try {
+    if (!redis)
+      return Response.json("Service unavailable - Redis not connected", { status: 503 });
     const { userUuid, programmingAssignment } = await request.json();
     if (!userUuid && !programmingAssignment) 
       return Response.json("Missing body", { status: 400 });
     await redis.set(`${userUuid}-last-visited`, JSON.stringify(programmingAssignment));
     return Response.json({ status: 200 });
   } catch(error) {
-    return Response.json({ status: 500 });
+    return Response.json(`Internal server error: ${error}`, { status: 500 });
   }
 }
 
 const handleGetAssignment = async (request) => {
   try {
+    if (!redis) 
+      return Response.json("Service unavailable - Redis not connected", { status: 503 });
     const url =  new URL(request.url);
     const userUuid = url.searchParams.get('userUuid');
     if (!userUuid) {
@@ -90,12 +105,15 @@ const handleGetAssignment = async (request) => {
 
     return Response.json("No assignments found", {status: 400});
   } catch(error) {
-    return Response.json(error, { status: 500 });
+    return Response.json(`Internal server error: ${error}`, { status: 500 });
   }
 }
 
 const handleGetAllAssignments = async () => {
   try {
+    if (!redis) {
+      return Response.json("Service unavailable - Redis not connected", { status: 503 });
+    }
     const cachedAssignments = await redis.get('all-assignments');
     if (cachedAssignments)
       return new Response(cachedAssignments, { status: 200 });
@@ -104,12 +122,14 @@ const handleGetAllAssignments = async () => {
     await redis.set('all-assignments', JSON.stringify(allAssignments));
     return Response.json(allAssignments, { status: 200 });
   } catch(error) {
-    return Response.json(error, { status: 500 });
+    return Response.json(`Internal server error: ${error}`, { status: 500 });
   }
 }
 
 const handleSubmission = async (request) => {
   try {
+    if (!clientPublish || !clientSubscribe) 
+      return Response.json("Service unavailable - Redis not connected", { status: 503 });
     const { userUuid, programmingAssignmentId, code } = await request.json();
     if (!userUuid || !programmingAssignmentId || !code) {
       return Response.json("Missing parameters", { status: 400 });
@@ -152,28 +172,27 @@ const handleSubmission = async (request) => {
     }
 
     return Response.json(submission[0], { status: 200 });
-  } catch {
-    return Response.json("Internal server error", { status: 500 });
+  } catch(error) {
+    return Response.json(`Internal server error: ${error}`, { status: 500 });
   }
 }
 
-const handleGetRoot = async () => {
-  return Response.json("hello")
-}
-
 const handleConnect = async (request) => {
-  const url = new URL(request.url);
-  const userUuid = url.searchParams.get('userUuid');
-  const { socket, response } = Deno.upgradeWebSocket(request);
+  try {
+    const url = new URL(request.url);
+    const userUuid = url.searchParams.get('userUuid');
+    const { socket, response } = Deno.upgradeWebSocket(request);
 
-  sockets.set(userUuid, socket);
+    sockets.set(userUuid, socket);
 
-  console.log(sockets);
-  socket.onclose = () => {
-    sockets.delete(socket);
-  };
+    socket.onclose = () => {
+      sockets.delete(socket);
+    };
 
-  return response;
+    return response;
+  } catch(error) {
+    console.error(error);
+  }
 }
 
 const urlMapping = [
@@ -201,11 +220,6 @@ const urlMapping = [
     method: "GET",
     pattern: new URLPattern({ pathname: "/submissions" }),
     fn: handleGetSubmissions
-  },
-  {
-    method: "GET",
-    pattern: new URLPattern({ pathname: "/" }),
-    fn: handleGetRoot  
   },
   {
     method: "GET",
