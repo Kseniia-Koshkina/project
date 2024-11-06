@@ -36,11 +36,14 @@ try {
           data.graderFeedback, 
           data.correct
         );
-        sockets.get(data.userUuid).send(message);
+        console.log("graded by: ",data.gradedBy);
+        const socket = sockets.get(data.userUuid);
+        if (socket)
+          socket.send(message);
       } catch(error) {
-      console.error(error);
-    }
-  });
+        console.error(error);
+      }
+    });
 } catch(error) {
   console.error("Failed to set up Redis connections:", error);
 }
@@ -171,7 +174,7 @@ const handleSubmission = async (request) => {
           code: code,
           testCode: testCode[0].test_code
         }
-        clientPublish.publish("submission-queue", JSON.stringify(message));
+        await clientPublish.xAdd("submission-queue", "*", { message: JSON.stringify(message) });
       }
     }
 
