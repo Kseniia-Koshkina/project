@@ -6,9 +6,10 @@
   }
 </script>
 
-<div class="w-full text-left">
+<div class="w-full text-left" data-testid="submission-info">
   <button
     on:click={toggleCollapse}
+    id="open-submission-button"
   >
     {isCollapsed ? ">" : "<"} {submission.last_updated.slice(0, 16)} {submission.status}
   </button>
