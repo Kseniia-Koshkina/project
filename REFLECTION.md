@@ -29,6 +29,6 @@ The submission process begins when the user presses the Submit button. A POST re
 
 #### Grading Process and Real-Time Feedback
 
-Both `grader-api` and `programming-api` use two Redis clients—one for sending messages and another for listening to incoming ones. `Programming-api` adds messages to the Redis Stream `'submission-queue'`, and these messages are distributed among the two instances of `grader-api` using a stream group. Each instance is uniquely identified using `crypto.randomUUID()`.
+Both `grader-api` and `programming-api` use two Redis clients — one for sending messages and another for listening to incoming ones. `Programming-api` adds messages to the Redis Stream `'submission-queue'`, and these messages are distributed among the two instances of `grader-api` using a stream group. Each instance is uniquely identified using `crypto.randomUUID()`.
 
 During grading, `grader-api` checks the correctness of the submission and parses any error message (I used a regular expression, `/(.*?)Error: (.*?)(?:$|\n)/`, to capture error types and descriptions). Once grading is complete, `grader-api` sends a message through the Pub/Sub system via the `'grading-results'` channel. `Programming-api` receives the graded result and sends it back to the client via the WebSocket connection. The UI then updates the submission list and adjusts the score if necessary.

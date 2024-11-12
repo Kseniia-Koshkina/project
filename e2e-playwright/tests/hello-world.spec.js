@@ -15,21 +15,16 @@ test("(1) Check a response to a submission that fails the test", async ({ page }
     return textarea && textarea.value !== 'Loading...';
   });
 
-  // fill textare with incorrect code
   const submissionArea = page.locator('[data-testid="submission-area"]');
   await submissionArea.fill(incorrectSubmission);
 
-  // press Submit button
   await page.getByRole('button', { name: 'Submit' }).click();
 
-  // wait for submission to append in the submission field
   const buttonLocator = page.locator('[data-testid="submission-info"] button');
   await buttonLocator.waitFor();
 
   await page.waitForFunction(() => {
     const button = document.getElementById('open-submission-button');
-    const buttonText = button.textContent;
-    console.log(buttonText);
     return button.textContent.includes('processed');
   });
 
@@ -48,26 +43,20 @@ test("(2) Check a response to a submission that passes the test", async ({ page 
     return textarea && textarea.value !== 'Loading...';
   });
 
-  // fill textare with incorrect code
   const submissionArea = page.locator('[data-testid="submission-area"]');
   await submissionArea.fill(correctSubmission);
 
-  // press Submit button
   await page.getByRole('button', { name: 'Submit' }).click();
 
-  // wait for submission to append in the submission field
   const buttonLocator = page.locator('[data-testid="submission-info"] button');
   await buttonLocator.waitFor();
 
   await page.waitForFunction(() => {
     const button = document.getElementById('open-submission-button');
-    const buttonText = button.textContent;
-    console.log(buttonText);
     return button.textContent.includes('processed');
   });
 
   const hiddenContent = await page.locator('[data-testid="submission-info"] div.text-left');
-  console.log(await hiddenContent.textContent())
   await expect(buttonLocator).toHaveText(/processed/);
   await expect(hiddenContent).toHaveText(/OK/);
 });
@@ -94,8 +83,6 @@ test("(3) Check a response to a submission that passes the test and check the we
 
   await page.waitForFunction(() => {
     const button = document.getElementById('open-submission-button');
-    const buttonText = button.textContent;
-    console.log(buttonText);
     return button.textContent.includes('processed');
   });
 
@@ -131,8 +118,6 @@ test("(4) Check whether the score increases for a correct submission", async ({ 
 
   await page.waitForFunction(() => {
     const button = document.getElementById('open-submission-button');
-    const buttonText = button.textContent;
-    console.log(buttonText);
     return button.textContent.includes('processed');
   });
 
@@ -166,8 +151,6 @@ test("(5) Verify that the score does not increase for an incorrect submission", 
 
   await page.waitForFunction(() => {
     const button = document.getElementById('open-submission-button');
-    const buttonText = button.textContent;
-    console.log(buttonText);
     return button.textContent.includes('processed');
   });
 
