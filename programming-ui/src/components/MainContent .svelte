@@ -5,7 +5,6 @@
   import NextButton from "./NextButton.svelte";
   import PreviousButton from "./PreviousButton.svelte";
   import Submission from "./Submission.svelte";
-  import { onMount } from "svelte";
   import { userUuid } from "../stores/stores";
 
   let inputText = "";
