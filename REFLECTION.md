@@ -25,7 +25,7 @@ When a navigation button is pressed, the application sends a POST request to upd
 
 Upon receiving an assignment, the app fetches all user submissions for it, as well as all correctly submitted assignments (one correct submission per assignment) to calculate the total score. This is done by counting the correct submissions and multiplying by 100.
 
-The submission process begins when the user presses the Submit button. A POST request with the submission data is sent to `programming-api`. If a record with identical code already exists, the backend returns the existing submission with a "processed" status and any recorded feedback. For new code submissions, `programming-api` saves the new submission to the database and returns it to the client. The UI then establishes a WebSocket connection with `programming-api` (adding the new connection to a map with the user UUID as the key) and proceeds with grading.
+The submission process begins when the user presses the Submit button. A POST request with the submission data is sent to `programming-api`. If a record with identical code already exists, the backend returns the existing submission with a "processed" status and any recorded feedback. For new code submissions, `programming-api` saves the new submission to the database and returns it to the client. The UI then establishes a WebSocket connection with `programming-api` and blocks sending new submissions while grading is not processed(adding the new connection to a map with the user UUID as the key) and proceeds with grading.
 
 #### Grading Process and Real-Time Feedback
 
