@@ -15,7 +15,7 @@ Next, I moved to back-end development, creating several endpoints and correspond
 -   **POST** `/assignment/last-visit`: Update the last visited assignment.
 -   **POST** `/submission`: Add a user submission.
 -   **GET** `/submissions`: Retrieve all user submissions or all correct solutions for a specific assignment.
--   **WebSocket** /connect`: Handle WebSocket connections.
+-   **WebSocket** `/connect`: Handle WebSocket connections.
 
 #### Application Flow
 
@@ -32,3 +32,9 @@ The submission process begins when the user presses the Submit button. A POST re
 Both `grader-api` and `programming-api` use two Redis clients — one for sending messages and another for listening to incoming ones. `Programming-api` adds messages to the Redis Stream `'submission-queue'`, and these messages are distributed among the two instances of `grader-api` using a stream group. Each instance is uniquely identified using `crypto.randomUUID()`.
 
 During grading, `grader-api` checks the correctness of the submission and parses any error message (I used a regular expression, `/(.*?)Error: (.*?)(?:$|\n)/`, to capture error types and descriptions). Once grading is complete, `grader-api` sends a message through the Pub/Sub system via the `'grading-results'` channel. `Programming-api` receives the graded result and sends it back to the client via the WebSocket connection. The UI then updates the submission list and adjusts the score if necessary.
+
+#### Reflection
+
+This project helped me achieve the course requirements and implement additional testing and optimization. I wrote end-to-end tests with Playwright, which was challenging as it was my first experience with this framework, and used k6 to evaluate app performance. I also configured the app for production deployment.
+
+Regarding optimizations, I have implemented caching for all assignment requests and the last visited assignment. Further improvements could include caching each individual assignment for more efficient navigation and data retrieval.
